@@ -1,0 +1,6 @@
+pre-commit==3.3.3
+black==22.10.0
+black[jupyter]
+isort==5.12.0
+nbstripout==0.6.1
+ruff==0.0.272
