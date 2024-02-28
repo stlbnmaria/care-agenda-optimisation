@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "care-agenda-optimisation"
+description = ""
+version = "0.0.1"
+readme = "README.md"
+requires-python = ">=3.9"
+
+[project.urls]
+"Homepage" = "https://github.com/stlbnmaria/care-agenda-optimisation"
+
+[tool.setuptools]
+packages = ["config", "src"]
+
+[tool.ruff]
+select = [
+  "E",
+  "W",
+  "F",
+  "I",
+  "N",
+  "D",
+  "ANN",
+  "Q",
+  "RET",
+  "ARG",
+  "PTH",
+  "PD",
+] # See: https://beta.ruff.rs/docs/rules/
+ignore = [
+  "D100",
+  "D101",
+  "D103",
+  "D106",
+  "D203",
+  "D213",
+  "D416",
+  "ANN101",
+  "ANN102",
+  "N803",
+  "PTH123",
+  "PD901",
+  "RET504",
+  "N806",
+  "I001",
+]
+line-length = 90
+target-version = "py310"
+exclude = [
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
+]
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+# https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html
+[tool.black]
+line-length = 79
+target-version = ["py310"]
+include = '\.pyi?$|\.ipynb'
+exclude = '''
+(
+  /(
+      \.direnv
+    | \.eggs
+    | \.git
+    | \.tox
+    | \.venv
+    | _build
+    | build
+    | dist
+    | venv
+  )/
+)
+'''
+
+[tool.isort]
+profile = "black"
