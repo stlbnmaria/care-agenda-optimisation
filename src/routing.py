@@ -1,14 +1,42 @@
 from itertools import combinations
+from typing import Tuple
 
 import googlemaps
 import pandas as pd
 
 from config.config_data import EXCEL_FILE
 from config.config_routing import COMMUTE_METHOD, GOOGLE_API, ROUTE_DIRECTION
+from src.dataloader import load_data
+
+
+def gmaps_api_request(
+    origins: Tuple[float], destination: Tuple[float]
+) -> Tuple[int]:
+    """Fetches distance & duration from Google Maps API for given origins & destination.
+
+    Parameters:
+    - origins (Tuple[float]): Tuple with origin coordinates (lat, lon).
+    - destination (Tuple[float]): Tuple with destination coordinates (lat, lon).
+
+    Returns:
+    Tuple[int]: Distance (meters) and duration (seconds) of the route.
+                If an error occurs, both values are 0.
+    """
+    try:
+        result = gmaps.distance_matrix(
+            origins, destination, mode=COMMUTE_METHOD
+        )
+        result_dist = result["rows"][0]["elements"][0]["distance"]["value"]
+        result_time = result["rows"][0]["elements"][0]["duration"]["value"]
+    except KeyError:
+        result_dist = 0
+        result_time = 0
+
+    return result_dist, result_time
+
 
 if __name__ == "__main__":
-    clients = pd.read_excel(EXCEL_FILE, sheet_name=1)
-    caregivers = pd.read_excel(EXCEL_FILE, sheet_name=2)
+    _, clients, caregivers = load_data(EXCEL_FILE)
 
     gmaps = googlemaps.Client(key=GOOGLE_API)
 
@@ -40,19 +68,7 @@ if __name__ == "__main__":
             destination = (LatDest, LongDest)
 
             # pass origin and destination variables to distance_matrix
-            try:
-                result = gmaps.distance_matrix(
-                    origins, destination, mode=COMMUTE_METHOD
-                )
-                result_dist = result["rows"][0]["elements"][0]["distance"][
-                    "value"
-                ]
-                result_time = result["rows"][0]["elements"][0]["duration"][
-                    "value"
-                ]
-            except KeyError:
-                result_dist = 0
-                result_time = 0
+            result_dist, result_time = gmaps_api_request(origins, destination)
 
             # append result to list
             list_seconds.append(result_time)
@@ -95,19 +111,9 @@ if __name__ == "__main__":
                 destination = (LatDest, LongDest)
 
                 # pass origin and destination variables to distance_matrix
-                try:
-                    result = gmaps.distance_matrix(
-                        origins, destination, mode=COMMUTE_METHOD
-                    )
-                    result_dist = result["rows"][0]["elements"][0]["distance"][
-                        "value"
-                    ]
-                    result_time = result["rows"][0]["elements"][0]["duration"][
-                        "value"
-                    ]
-                except KeyError:
-                    result_dist = 0
-                    result_time = 0
+                result_dist, result_time = gmaps_api_request(
+                    origins, destination
+                )
 
                 # append result to list
                 list_seconds.append(result_time)
@@ -151,19 +157,9 @@ if __name__ == "__main__":
                 destination = (LatDest, LongDest)
 
                 # pass origin and destination variables to distance_matrix
-                try:
-                    result = gmaps.distance_matrix(
-                        origins, destination, mode=COMMUTE_METHOD
-                    )
-                    result_dist = result["rows"][0]["elements"][0]["distance"][
-                        "value"
-                    ]
-                    result_time = result["rows"][0]["elements"][0]["duration"][
-                        "value"
-                    ]
-                except KeyError:
-                    result_dist = 0
-                    result_time = 0
+                result_dist, result_time = gmaps_api_request(
+                    origins, destination
+                )
 
                 # append result to list
                 list_seconds.append(result_time)
@@ -182,5 +178,5 @@ if __name__ == "__main__":
     # finalise and save
     df["commute_method"] = COMMUTE_METHOD
     df.to_csv(
-        f"../data/commute_{COMMUTE_METHOD}_{ROUTE_DIRECTION}.csv", index=False
+        f"data/commute_{COMMUTE_METHOD}_{ROUTE_DIRECTION}.csv", index=False
     )
