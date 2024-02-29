@@ -9,6 +9,27 @@ from config.config_routing import COMMUTE_METHOD, GOOGLE_API, ROUTE_DIRECTION
 from src.dataloader import load_data
 
 
+def get_coordinate_tuple(
+    df: pd.DataFrame, constraint: pd.Series
+) -> Tuple[float]:
+    """Extracts latitude and longitude from a DataFrame based on a given constraint.
+
+    Parameters:
+    - df (pd.DataFrame): DataFrame with latitude and longitude information.
+    - constraint (pd.Series): Boolean Series as a constraint for row selection.
+
+    Returns:
+    Tuple[float]: Tuple containing latitude and longitude coordinates.
+    """
+    df = df.copy()
+
+    Lat = df.loc[constraint, "Latitude"]
+    Long = df.loc[constraint, "Longitude"]
+    coord_tuple = (Lat, Long)
+
+    return coord_tuple
+
+
 def gmaps_api_request(
     origins: Tuple[float], destination: Tuple[float]
 ) -> Tuple[int]:
@@ -22,14 +43,14 @@ def gmaps_api_request(
     Tuple[int]: Distance (meters) and duration (seconds) of the route.
                 If an error occurs, both values are 0.
     """
+    result = gmaps.distance_matrix(origins, destination, mode=COMMUTE_METHOD)
     try:
-        result = gmaps.distance_matrix(
-            origins, destination, mode=COMMUTE_METHOD
-        )
         result_dist = result["rows"][0]["elements"][0]["distance"]["value"]
-        result_time = result["rows"][0]["elements"][0]["duration"]["value"]
     except KeyError:
         result_dist = 0
+    try:
+        result_time = result["rows"][0]["elements"][0]["duration"]["value"]
+    except KeyError:
         result_time = 0
 
     return result_dist, result_time
@@ -40,32 +61,22 @@ if __name__ == "__main__":
 
     gmaps = googlemaps.Client(key=GOOGLE_API)
 
+    # empty list - will be used to store calculated distances
+    list_seconds = []
+    list_distance = []
+
     if ROUTE_DIRECTION == "clients":
         comb_clients = list(combinations(clients["ID Client"], 2))
-
-        # empty list - will be used to store calculated distances
-        list_seconds = []
-        list_distance = []
 
         # Loop through each row in the data frame using pairwise
         for client1, client2 in comb_clients:
             # Assign latitude and longitude as origin/departure points
-            LatOrigin = clients.loc[
-                clients["ID Client"] == client1, "Latitude"
-            ]
-            LongOrigin = clients.loc[
-                clients["ID Client"] == client1, "Longitude"
-            ]
-            origins = (LatOrigin, LongOrigin)
-
-            # Assign latitude and longitude from the next row as the destination point
-            LatDest = clients.loc[
-                clients["ID Client"] == client2, "Latitude"
-            ]  # Save value as lat
-            LongDest = clients.loc[
-                clients["ID Client"] == client2, "Longitude"
-            ]  # Save value as lat
-            destination = (LatDest, LongDest)
+            origins = get_coordinate_tuple(
+                clients, clients["ID Client"] == client1
+            )
+            destination = get_coordinate_tuple(
+                clients, clients["ID Client"] == client2
+            )
 
             # pass origin and destination variables to distance_matrix
             result_dist, result_time = gmaps_api_request(origins, destination)
@@ -74,41 +85,19 @@ if __name__ == "__main__":
             list_seconds.append(result_time)
             list_distance.append(result_dist)
 
-        df = pd.DataFrame(
-            {
-                "clients": comb_clients,
-                "commute_seconds": list_seconds,
-                "commute_meters": list_distance,
-            }
-        )
-        df["source"], df["destination"] = zip(*df.clients)
-
-    elif ROUTE_DIRECTION == "care_clients":
-        # empty list - will be used to store calculated distances
+    elif ROUTE_DIRECTION == "care_client":
         combs_list = []
-        list_seconds = []
-        list_distance = []
 
         for care_id in caregivers["ID Intervenant"].unique():
             # Loop through each row in the data frame using pairwise
             for client_id in clients["ID Client"].unique():
                 # Assign latitude and longitude as origin/departure points
-                LatOrigin = caregivers.loc[
-                    caregivers["ID Intervenant"] == care_id, "Latitude"
-                ]
-                LongOrigin = caregivers.loc[
-                    caregivers["ID Intervenant"] == care_id, "Longitude"
-                ]
-                origins = (LatOrigin, LongOrigin)
-
-                # Assign latitude and longitude from the next row as the destination point
-                LatDest = clients.loc[
-                    clients["ID Client"] == client_id, "Latitude"
-                ]  # Save value as lat
-                LongDest = clients.loc[
-                    clients["ID Client"] == client_id, "Longitude"
-                ]  # Save value as lat
-                destination = (LatDest, LongDest)
+                origins = get_coordinate_tuple(
+                    caregivers, caregivers["ID Intervenant"] == care_id
+                )
+                destination = get_coordinate_tuple(
+                    clients, clients["ID Client"] == client_id
+                )
 
                 # pass origin and destination variables to distance_matrix
                 result_dist, result_time = gmaps_api_request(
@@ -120,41 +109,19 @@ if __name__ == "__main__":
                 list_distance.append(result_dist)
                 combs_list.append((care_id, client_id))
 
-        df = pd.DataFrame(
-            {
-                "care_client": combs_list,
-                "commute_seconds": list_seconds,
-                "commute_meters": list_distance,
-            }
-        )
-        df["source"], df["destination"] = zip(*df.care_client)
-
-    elif ROUTE_DIRECTION == "clients_care":
-        # empty list - will be used to store calculated distances
-        list_seconds = []
-        list_distance = []
+    elif ROUTE_DIRECTION == "client_care":
         combs_list = []
 
         for care_id in caregivers["ID Intervenant"].unique():
             # Loop through each row in the data frame using pairwise
             for client_id in clients["ID Client"].unique():
                 # Assign latitude and longitude from the next row as the destination point
-                LatOrigin = clients.loc[
-                    clients["ID Client"] == client_id, "Latitude"
-                ]  # Save value as lat
-                LongOrigin = clients.loc[
-                    clients["ID Client"] == client_id, "Longitude"
-                ]  # Save value as lat
-                origins = (LatOrigin, LongOrigin)
-
-                # Assign latitude and longitude as origin/departure points
-                LatDest = caregivers.loc[
-                    caregivers["ID Intervenant"] == care_id, "Latitude"
-                ]
-                LongDest = caregivers.loc[
-                    caregivers["ID Intervenant"] == care_id, "Longitude"
-                ]
-                destination = (LatDest, LongDest)
+                origins = get_coordinate_tuple(
+                    clients, clients["ID Client"] == client_id
+                )
+                destination = get_coordinate_tuple(
+                    caregivers, caregivers["ID Intervenant"] == care_id
+                )
 
                 # pass origin and destination variables to distance_matrix
                 result_dist, result_time = gmaps_api_request(
@@ -166,16 +133,15 @@ if __name__ == "__main__":
                 list_distance.append(result_dist)
                 combs_list.append((client_id, care_id))
 
-        df = pd.DataFrame(
-            {
-                "client_care": combs_list,
-                "commute_seconds": list_seconds,
-                "commute_meters": list_distance,
-            }
-        )
-        df["source"], df["destination"] = zip(*df.client_care)
-
-    # finalise and save
+    # create output df and save
+    df = pd.DataFrame(
+        {
+            ROUTE_DIRECTION: combs_list,
+            "commute_seconds": list_seconds,
+            "commute_meters": list_distance,
+        }
+    )
+    df["source"], df["destination"] = zip(*df[ROUTE_DIRECTION])
     df["commute_method"] = COMMUTE_METHOD
     df.to_csv(
         f"data/commute_{COMMUTE_METHOD}_{ROUTE_DIRECTION}.csv", index=False
