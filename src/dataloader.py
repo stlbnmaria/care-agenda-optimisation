@@ -150,6 +150,21 @@ def create_schedule_df() -> None:
     )
 
     sched_one_day = sched_one_day.sort_values("Heure de début")
+    sched_one_day = sched_one_day.reset_index(drop=True)
+
+    sched_one_day["idx"] = sched_one_day.index
+
+    sched_one_day["Start_time"] = (
+        pd.to_datetime(sched_one_day["Heure de début"])
+        - pd.to_datetime("2024-01-03 00:00:00")
+    ).dt.seconds
+
+    sched_one_day["Start_time"] = sched_one_day["Start_time"].apply(
+        lambda x: x // 60
+    )
+
+    sched_one_day = sched_one_day.drop(columns="ID Intervenant")
+
     sched_one_day.to_csv("data/schedule_2024-03-01.csv", index=False)
 
 
