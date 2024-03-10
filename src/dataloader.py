@@ -29,22 +29,16 @@ def create_commute_df(kind: str = "driving") -> None:
     """Loads all the commute data and creates a whole df based on kind.
 
     Parameters:
-    - kind (str): Kind of commute (either driving for all or by license).
+    - kind (str): Kind of commute (either driving for all or by bicycling).
 
     Returns: None
     """
     # loading and merging commute data
     commute_file_paths = [
-        "data/commute_driving_clients.csv",
-        "data/commute_driving_care_clients.csv",
-        "data/commute_driving_clients_care.csv",
+        f"data/commute_{kind}_clients.csv",
+        f"data/commute_{kind}_care_clients.csv",
+        f"data/commute_{kind}_clients_care.csv",
     ]
-    if kind == "license":
-        commute_file_paths = commute_file_paths + [
-            "data/commute_bicycling_clients.csv",
-            "data/commute_bicycling_care_clients.csv",
-            "data/commute_bicycling_clients_care.csv",
-        ]
     commute_dataframes = [pd.read_csv(file) for file in commute_file_paths]
     for df in commute_dataframes:
         if df.columns[0] != ["pair"]:  # standardizing column names
@@ -54,29 +48,21 @@ def create_commute_df(kind: str = "driving") -> None:
     # create dummy commutes between the same caregivers home
     caregivers = pd.read_excel("data/ChallengeXHEC23022024.xlsx", sheet_name=2)
 
-    if kind == "license":
-        methods = ["driving", "bicycling"]
-    else:
-        methods = ["driving"]
+    caregivers_commute = pd.DataFrame(
+        {
+            "source": caregivers["ID Intervenant"].unique(),
+            "destination": caregivers["ID Intervenant"].unique(),
+        }
+    )
+    caregivers_commute.insert(0, "commute_meters", 0)
+    caregivers_commute.insert(0, "commute_seconds", 0)
+    caregivers_commute.insert(
+        0, "pair", list(zip(caregivers_commute.source, df.destination))
+    )
+    caregivers_commute["commute_method"] = kind
 
-    for commute in methods:
-        caregivers_commute = pd.DataFrame(
-            {
-                "source": caregivers["ID Intervenant"].unique(),
-                "destination": caregivers["ID Intervenant"].unique(),
-            }
-        )
-        caregivers_commute.insert(0, "commute_meters", 0)
-        caregivers_commute.insert(0, "commute_seconds", 0)
-        caregivers_commute.insert(
-            0, "pair", list(zip(caregivers_commute.source, df.destination))
-        )
-        caregivers_commute["commute_method"] = commute
-
-        # merge all data
-        commute_data_df = pd.concat(
-            [commute_data_df, caregivers_commute], axis=0
-        )
+    # merge all data
+    commute_data_df = pd.concat([commute_data_df, caregivers_commute], axis=0)
 
     # create commute in minutes
     commute_data_df["commute_minutes"] = (
@@ -186,9 +172,31 @@ def create_caregiver_availability() -> None:
     caregiver_avail_df.to_csv("data/caregiver_avail.csv", index=False)
 
 
-if __name__ == "__main__":
-    create_commute_df(kind="driving")
-    create_commute_df(kind="license")
+def create_transport_possibilities(kind: str = "license") -> None:
+    excel_file = Path("data/ChallengeXHEC23022024.xlsx")
+    caregivers = pd.read_excel(excel_file, sheet_name=2)
 
+    # get license information
+    caregiver_transport = caregivers[["ID Intervenant", "Permis"]]
+    caregiver_transport = caregiver_transport.fillna("Non")
+    caregiver_transport = caregiver_transport.replace(
+        {"Oui": True, "Non": False}
+    )
+
+    # dummy value for driving
+    if kind == "driving":
+        caregiver_transport["Permis"] = True
+
+    caregiver_transport.to_csv(
+        f"data/caregiver_transport_{kind}.csv", index=False
+    )
+
+
+if __name__ == "__main__":
     create_schedule_df()
     create_caregiver_availability()
+
+    create_commute_df(kind="driving")
+    create_commute_df(kind="bicycling")
+    create_transport_possibilities(kind="license")
+    create_transport_possibilities(kind="driving")
