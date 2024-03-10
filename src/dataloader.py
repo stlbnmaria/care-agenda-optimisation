@@ -148,7 +148,7 @@ def create_schedule_df() -> None:
         schedule = pd.concat([schedule, after_last_client], ignore_index=True)
 
     # sort values and create index for sessions
-    schedule = schedule.sort_values("Heure de début")
+    schedule = schedule.sort_values(["Heure de début", "Heure de fin"])
     schedule = schedule.reset_index(drop=True)
     schedule["idx"] = schedule.index
 
