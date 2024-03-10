@@ -45,8 +45,8 @@ def create_commute_df(kind: str = "driving") -> None:
         ]
     commute_dataframes = [pd.read_csv(file) for file in commute_file_paths]
     for df in commute_dataframes:
-        if df.columns[0] != "pair":  # standardizing column names
-            df = df.rename(columns={df.columns[0]: "pair"})
+        if df.columns[0] != ["pair"]:  # standardizing column names
+            df.rename(columns={df.columns[0]: "pair"}, inplace=True)
     commute_data_df = pd.concat(commute_dataframes, ignore_index=True)
 
     # create dummy commutes between the same caregivers home
