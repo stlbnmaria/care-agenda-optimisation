@@ -51,27 +51,30 @@ def create_commute_df(kind: str = "driving") -> None:
 
     # create dummy commutes between the same caregivers home
     caregivers = pd.read_excel("data/ChallengeXHEC23022024.xlsx", sheet_name=2)
-    caregivers_commute = pd.DataFrame(
-        {
-            "source": caregivers["ID Intervenant"].unique(),
-            "destination": caregivers["ID Intervenant"].unique(),
-        }
-    )
-    caregivers_commute.insert(0, "commute_meters", 0)
-    caregivers_commute.insert(0, "commute_seconds", 0)
-    caregivers_commute.insert(
-        0, "pair", list(zip(caregivers_commute.source, df.destination))
-    )
-    caregivers_commute["commute_method"] = "driving"
 
-    # TODO: filter for the correct commute so that it is not double if kind == license
-    #       and adapt the commute above
-    # caregivers["Commute Method"] = caregivers["Véhicule personnel"].map(
-    #     {"Oui": "driving", "Non": "bicycling", np.nan: "bicycling"}
-    # )  # map commute method
+    if kind == "license":
+        methods = ["driving", "bicycling"]
+    else:
+        methods = ["driving"]
 
-    # merge all data
-    commute_data_df = pd.concat([commute_data_df, caregivers_commute], axis=0)
+    for commute in methods:
+        caregivers_commute = pd.DataFrame(
+            {
+                "source": caregivers["ID Intervenant"].unique(),
+                "destination": caregivers["ID Intervenant"].unique(),
+            }
+        )
+        caregivers_commute.insert(0, "commute_meters", 0)
+        caregivers_commute.insert(0, "commute_seconds", 0)
+        caregivers_commute.insert(
+            0, "pair", list(zip(caregivers_commute.source, df.destination))
+        )
+        caregivers_commute["commute_method"] = commute
+
+        # merge all data
+        commute_data_df = pd.concat(
+            [commute_data_df, caregivers_commute], axis=0
+        )
 
     # create commute in minutes
     commute_data_df["commute_minutes"] = (
@@ -175,6 +178,6 @@ def create_schedule_df() -> None:
 
 if __name__ == "__main__":
     create_commute_df(kind="driving")
-    # create_commute_df(kind="license")
+    create_commute_df(kind="license")
 
     create_schedule_df()
