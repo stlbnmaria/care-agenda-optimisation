@@ -457,7 +457,7 @@ class CareScheduler:
         solver = pe.SolverFactory(solvername, executable=solverpath_exe)
 
         # Add solver parameters (time limit)
-        options = {"seconds": 600}
+        options = {"seconds": 900}
         for key, value in options.items():
             solver.options[key] = value
 
