@@ -3,6 +3,8 @@ from typing import Tuple
 
 import pandas as pd
 
+from config.availability import CAREGIVER_AVAILABILITY_DICT
+
 
 def load_data(excel_file: Path) -> Tuple[pd.DataFrame]:
     """Loads data from an Excel file containing schedule, clients, and caregivers.
@@ -176,8 +178,17 @@ def create_schedule_df() -> None:
     schedule.to_csv("data/schedule.csv", index=False)
 
 
+def create_caregiver_availability() -> None:
+    caregiver_avail_df = pd.DataFrame(
+        list(CAREGIVER_AVAILABILITY_DICT.items()),
+        columns=["ID Intervenant", "UNDISP_DAYS"],
+    )
+    caregiver_avail_df.to_csv("data/caregiver_avail.csv", index=False)
+
+
 if __name__ == "__main__":
     create_commute_df(kind="driving")
     create_commute_df(kind="license")
 
     create_schedule_df()
+    create_caregiver_availability()
