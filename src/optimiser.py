@@ -1,3 +1,4 @@
+import argparse
 import ast
 from itertools import product
 from pathlib import Path
@@ -674,7 +675,9 @@ class CareScheduler:
         return solver_results
 
 
-if __name__ == "__main__":
+def main(
+    include_availability=True, filter_for_competence=True, transport="license"
+):
     commute_data_df = get_commute_data()
     caregivers = caregivers = pd.read_excel(
         "data/ChallengeXHEC23022024.xlsx", sheet_name=2
@@ -688,9 +691,9 @@ if __name__ == "__main__":
         print(f"Starting optimisation for 2024-01-{i}")
         scheduler = CareScheduler(
             date=f"2024-01-{i}",
-            include_availability=True,
-            transport="license",
-            filter_for_competence=True,
+            include_availability=include_availability,
+            transport=transport,
+            filter_for_competence=filter_for_competence,
         )
         solver_results = scheduler.solve()
         model = scheduler.model
@@ -723,12 +726,38 @@ if __name__ == "__main__":
         plots_dir = Path("plots")
         jan24_df = preprocess_schedules(temp, caregivers)
         for intervenant_id in jan24_df["ID Intervenant"].unique():
-
-            intervenant_agenda_commute = plot_agenda(
+            plot_agenda(
                 intervenant_id,
                 jan24_df,
                 commute_data_df,
-                kind="license",
+                kind=transport,
                 save_plots=True,
                 save_dir=plots_dir / f"2024-01-{i}",
             )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run optimization for caregiver scheduling."
+    )
+    parser.add_argument(
+        "--include_availability",
+        action="store_true",
+        help="Include availability.",
+    )
+    parser.add_argument(
+        "--filter_for_competence",
+        dest="filter_for_competence",
+        action="store_true",
+        help="filter for competence of caregivers.",
+    )
+    parser.add_argument(
+        "--transport", type=str, default="license", help="Type of transport."
+    )
+    args = parser.parse_args()
+
+    main(
+        include_availability=args.include_availability,
+        filter_for_competence=args.filter_for_competence,
+        transport=args.transport,
+    )
