@@ -328,6 +328,11 @@ class CareScheduler:
         return case_comb
 
     def create_model(self):
+        """Generate concrete model for optimisation problem
+
+        Returns:
+            _type_: _description_
+        """
         model = pe.ConcreteModel()
 
         # List of case IDs in home care client needs list
@@ -396,7 +401,8 @@ class CareScheduler:
             rule=objective_function, sense=pe.minimize
         )
 
-        # each case can be maximum given once as source for all destinations and caregivers
+        # each case can be maximum given once as source 
+        # for all destinations and caregivers
         def session_assignment(model, case):
             return (
                 sum(
@@ -781,3 +787,4 @@ if __name__ == "__main__":
                 save_plots=True,
                 save_dir=plots_dir / f"2024-01-{i}",
             )
+            
