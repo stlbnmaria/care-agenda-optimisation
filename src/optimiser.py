@@ -19,6 +19,7 @@ class CareScheduler:
         include_availability: bool = False,
         transport: str = "driving",
         filter_for_competence: bool = False,
+        carbon_reduction: bool = False,
     ):
         try:
             df_sessions = pd.read_csv("data/schedule.csv")
@@ -114,6 +115,7 @@ class CareScheduler:
                 .to_dict()
             )
 
+        self.carbon_reduction = carbon_reduction
         self.model = self.create_model()
 
     def _generate_case_durations(self) -> dict:
@@ -172,6 +174,27 @@ class CareScheduler:
                 0
             ]
         return clients_commute_bicycling
+
+    def _generate_commute_car_meters(self):
+        clients_commute = {}
+        cargivers = self.df_cargeivers["ID Intervenant"].to_list()
+        for source, dest in product(
+            self.df_sessions["ID Client"].unique(),
+            self.df_sessions["ID Client"].unique(),
+        ):
+            if (
+                (source in cargivers)
+                and (dest in cargivers)
+                and (source != dest)
+            ):
+                continue
+
+            clients_commute[(source, dest)] = self.df_commute.loc[
+                (self.df_commute.source == source)
+                & (self.df_commute.destination == dest),
+                "commute_meters",
+            ].iloc[0]
+        return clients_commute
 
     def _IDX_CLIENTS_match(self) -> dict:
         return pd.Series(
@@ -380,6 +403,10 @@ class CareScheduler:
             model.CLIENT_CONNECTIONS,
             initialize=self._generate_clients_commute_bicycling(),
         )
+        model.COMMUTE_CAR_METER = pe.Param(
+            model.CLIENT_CONNECTIONS,
+            initialize=self._generate_commute_car_meters(),
+        )
 
         # Decision Variables
         ub = 1440  # minutes in a day
@@ -392,12 +419,22 @@ class CareScheduler:
             model.DISJUNCTIONS, bounds=(0.0, 1440.0), within=pe.PositiveReals
         )
         model.DOWN_TIME_COUNTS = pe.Var(model.DISJUNCTIONS, within=pe.Binary)
+        model.COMMUTE_METERS = pe.Var(
+            model.DISJUNCTIONS, within=pe.PositiveReals
+        )
 
         # Objective
         def objective_function(model):
-            return pe.summation(model.COMMUTE_CARE) + 5 * pe.summation(
-                model.DOWN_TIME_COUNTS
-            )
+            if self.carbon_reduction:
+                return (
+                    pe.summation(model.COMMUTE_CARE)
+                    + 5 * pe.summation(model.DOWN_TIME_COUNTS)
+                    + pe.summation(model.COMMUTE_METERS) / 1000
+                )
+            else:
+                return pe.summation(model.COMMUTE_CARE) + 5 * pe.summation(
+                    model.DOWN_TIME_COUNTS
+                )
 
         model.OBJECTIVE = pe.Objective(
             rule=objective_function, sense=pe.minimize
@@ -599,6 +636,33 @@ class CareScheduler:
             model.DISJUNCTIONS, rule=commute_care
         )
 
+        def commute_meters(model, case1, case2, caregiver):
+            if self.df_caregiver_transport.loc[
+                self.df_caregiver_transport["ID Intervenant"] == caregiver,
+                "Permis",
+            ].iloc[0]:
+                commute_expr = model.SESSION_ASSIGNED[
+                    case1, case2, caregiver
+                ] * (
+                    model.COMMUTE_CAR_METER[
+                        (
+                            model.IDX_CLIENTS[case1],
+                            model.IDX_CLIENTS[case2],
+                        )
+                    ]
+                )
+            else:
+                commute_expr = (
+                    model.SESSION_ASSIGNED[case1, case2, caregiver] * 0
+                )
+            return (
+                model.COMMUTE_METERS[case1, case2, caregiver] == commute_expr
+            )
+
+        model.COMMUTE_METERS_CONST = pe.Constraint(
+            model.DISJUNCTIONS, rule=commute_meters
+        )
+
         def no_case_overlap(model, case1, case2, caregiver):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
@@ -659,9 +723,7 @@ class CareScheduler:
         return model
 
     def solve(self):
-        # solvername = "glpk"
         solvername = "cbc"
-
         solverpath_exe = "/opt/homebrew/bin/cbc"
         solver = pe.SolverFactory(solvername, executable=solverpath_exe)
 
@@ -676,7 +738,10 @@ class CareScheduler:
 
 
 def main(
-    include_availability=True, filter_for_competence=True, transport="license"
+    include_availability=True,
+    filter_for_competence=True,
+    transport="license",
+    carbon_reduction=False,
 ):
     commute_data_df = get_commute_data()
     caregivers = caregivers = pd.read_excel(
@@ -694,6 +759,7 @@ def main(
             include_availability=include_availability,
             transport=transport,
             filter_for_competence=filter_for_competence,
+            carbon_reduction=carbon_reduction,
         )
         solver_results = scheduler.solve()
         model = scheduler.model
@@ -724,7 +790,7 @@ def main(
 
         # Plot agenda and Save it
         plots_dir = Path("plots")
-        jan24_df = preprocess_schedules(temp, caregivers)
+        jan24_df = preprocess_schedules(temp, caregivers, kind=transport)
         for intervenant_id in jan24_df["ID Intervenant"].unique():
             plot_agenda(
                 intervenant_id,
@@ -752,6 +818,12 @@ if __name__ == "__main__":
         help="filter for competence of caregivers.",
     )
     parser.add_argument(
+        "--carbon_reduction",
+        dest="carbon_reduction",
+        action="store_true",
+        help="include carbon emission in objective function.",
+    )
+    parser.add_argument(
         "--transport", type=str, default="license", help="Type of transport."
     )
     args = parser.parse_args()
@@ -759,5 +831,6 @@ if __name__ == "__main__":
     main(
         include_availability=args.include_availability,
         filter_for_competence=args.filter_for_competence,
+        carbon_reduction=args.carbon_reduction,
         transport=args.transport,
     )
