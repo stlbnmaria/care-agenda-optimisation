@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import plotly.express as px
 
@@ -72,6 +74,8 @@ def plot_agenda(
     jan24_df: pd.DataFrame,
     commute_data_df: pd.DataFrame,
     kind: str = "license",
+    save_plots: bool = False,
+    save_dir: str = None,
 ) -> pd.DataFrame:
     intervenant_agenda = jan24_df[jan24_df["ID Intervenant"] == intervenant_id]
     intervenant_agenda_sorted = intervenant_agenda.sort_values(
@@ -196,7 +200,12 @@ def plot_agenda(
             type="date",
         )
     )
+    if save_plots:
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        fig.write_html(f"{save_dir}/timeline_{intervenant_id}.html")
+        return None
 
     fig.show()
-
     return combined_df
