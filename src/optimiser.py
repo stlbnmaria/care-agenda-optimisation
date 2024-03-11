@@ -722,13 +722,13 @@ class CareScheduler:
 
         return model
 
-    def solve(self):
+    def solve(self, time_limit=1200):
         solvername = "cbc"
         solverpath_exe = "/opt/homebrew/bin/cbc"
         solver = pe.SolverFactory(solvername, executable=solverpath_exe)
 
         # Add solver parameters (time limit)
-        options = {"seconds": 1200}
+        options = {"seconds": time_limit}
         for key, value in options.items():
             solver.options[key] = value
 
@@ -742,6 +742,7 @@ def main(
     filter_for_competence=True,
     transport="license",
     carbon_reduction=False,
+    time_limit=1200,
 ):
     commute_data_df = get_commute_data()
     caregivers = caregivers = pd.read_excel(
@@ -761,7 +762,7 @@ def main(
             filter_for_competence=filter_for_competence,
             carbon_reduction=carbon_reduction,
         )
-        solver_results = scheduler.solve()
+        solver_results = scheduler.solve(time_limit)
         model = scheduler.model
 
         # get all session assigned by key
@@ -826,6 +827,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--transport", type=str, default="license", help="Type of transport."
     )
+    parser.add_argument(
+        "--time_limit", type=int, default=1200, help="Time limit for solver."
+    )
     args = parser.parse_args()
 
     main(
@@ -833,4 +837,5 @@ if __name__ == "__main__":
         filter_for_competence=args.filter_for_competence,
         carbon_reduction=args.carbon_reduction,
         transport=args.transport,
+        time_limit=args.time_limit,
     )
