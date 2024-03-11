@@ -192,6 +192,34 @@ def create_transport_possibilities(kind: str = "license") -> None:
     )
 
 
+def get_commute_data(
+    commute_file_paths: list[str] = [
+        "data/commute_bicycling_clients.csv",
+        "data/commute_driving_clients.csv",
+        "data/commute_bicycling_care_clients.csv",
+        "data/commute_bicycling_clients_care.csv",
+        "data/commute_driving_care_clients.csv",
+        "data/commute_driving_clients_care.csv",
+    ]
+) -> pd.DataFrame:
+
+    commute_dataframes = [pd.read_csv(file) for file in commute_file_paths]
+
+    for df in commute_dataframes:
+        if df.columns[0] not in ["pair"]:  # standardizing column names
+            df.rename(columns={df.columns[0]: "pair"}, inplace=True)
+
+    commute_data_df = pd.concat(commute_dataframes, ignore_index=True)
+    commute_data_df[["source", "destination"]] = commute_data_df[
+        "pair"
+    ].str.extract(r"\((\d+), (\d+)\)")
+    commute_data_df.drop(columns="pair", inplace=True)
+    commute_data_df.set_index(
+        ["source", "destination", "commute_method"], inplace=True
+    )
+    return commute_data_df
+
+
 if __name__ == "__main__":
     create_schedule_df()
     create_caregiver_availability()

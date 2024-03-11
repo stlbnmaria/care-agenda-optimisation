@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 
@@ -201,11 +202,38 @@ def plot_agenda(
         )
     )
     if save_plots:
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-
+        save_dir.mkdir(parents=True, exist_ok=True)
         fig.write_html(f"{save_dir}/timeline_{intervenant_id}.html")
         return None
 
     fig.show()
     return combined_df
+
+
+def preprocess_schedules(
+    temp: pd.DataFrame, caregivers: pd.DataFrame
+) -> pd.DataFrame:
+    jan24_df = temp.copy()
+    jan24_df = jan24_df[jan24_df.Prestation != "COMMUTE"]
+
+    caregivers["Commute Method"] = caregivers["Véhicule personnel"].map(
+        {"Oui": "driving", "Non": "bicycling", np.nan: "bicycling"}
+    )  # map commute method
+    jan24_df = jan24_df.merge(
+        caregivers[["ID Intervenant", "Commute Method"]],
+        left_on="Caregiver_ID",
+        right_on="ID Intervenant",
+        how="left",
+    )  # merge with agenda data
+
+    jan24_df["Start DateTime"] = pd.to_datetime(
+        jan24_df["Date"].astype(str)
+        + " "
+        + jan24_df["Heure de début"].astype(str)
+    )
+    jan24_df["End DateTime"] = pd.to_datetime(
+        jan24_df["Date"].astype(str)
+        + " "
+        + jan24_df["Heure de fin"].astype(str)
+    )
+    return jan24_df
