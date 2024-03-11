@@ -7,7 +7,8 @@ import pandas as pd
 import pyomo.environ as pe
 import pyomo.gdp as pyogdp
 
-from utils import plot_agenda
+from src.dataloader import get_commute_data
+from src.utils import plot_agenda, preprocess_schedules
 
 
 class CareScheduler:
@@ -673,63 +674,6 @@ class CareScheduler:
         return solver_results
 
 
-def get_commute_data(
-    commute_file_paths: list[str] = [
-        "data/commute_bicycling_clients.csv",
-        "data/commute_driving_clients.csv",
-        "data/commute_bicycling_care_clients.csv",
-        "data/commute_bicycling_clients_care.csv",
-        "data/commute_driving_care_clients.csv",
-        "data/commute_driving_clients_care.csv",
-    ]
-) -> pd.DataFrame:
-
-    commute_dataframes = [pd.read_csv(file) for file in commute_file_paths]
-
-    for df in commute_dataframes:
-        if df.columns[0] not in ["pair"]:  # standardizing column names
-            df.rename(columns={df.columns[0]: "pair"}, inplace=True)
-
-    commute_data_df = pd.concat(commute_dataframes, ignore_index=True)
-    commute_data_df[["source", "destination"]] = commute_data_df[
-        "pair"
-    ].str.extract(r"\((\d+), (\d+)\)")
-    commute_data_df.drop(columns="pair", inplace=True)
-    commute_data_df.set_index(
-        ["source", "destination", "commute_method"], inplace=True
-    )
-    return commute_data_df
-
-
-def preprocess_schedules(
-    temp: pd.DataFrame, caregivers: pd.DataFrame
-) -> pd.DataFrame:
-    jan24_df = temp.copy()
-    jan24_df = jan24_df[jan24_df.Prestation != "COMMUTE"]
-
-    caregivers["Commute Method"] = caregivers["Véhicule personnel"].map(
-        {"Oui": "driving", "Non": "bicycling", np.nan: "bicycling"}
-    )  # map commute method
-    jan24_df = jan24_df.merge(
-        caregivers[["ID Intervenant", "Commute Method"]],
-        left_on="Caregiver_ID",
-        right_on="ID Intervenant",
-        how="left",
-    )  # merge with agenda data
-
-    jan24_df["Start DateTime"] = pd.to_datetime(
-        jan24_df["Date"].astype(str)
-        + " "
-        + jan24_df["Heure de début"].astype(str)
-    )
-    jan24_df["End DateTime"] = pd.to_datetime(
-        jan24_df["Date"].astype(str)
-        + " "
-        + jan24_df["Heure de fin"].astype(str)
-    )
-    return jan24_df
-
-
 if __name__ == "__main__":
     commute_data_df = get_commute_data()
     caregivers = caregivers = pd.read_excel(
@@ -745,6 +689,7 @@ if __name__ == "__main__":
         scheduler = CareScheduler(
             date=f"2024-01-{i}",
             include_availability=True,
+            transport="license",
             filter_for_competence=True,
         )
         solver_results = scheduler.solve()
