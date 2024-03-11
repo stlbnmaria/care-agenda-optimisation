@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -54,14 +52,21 @@ def compute_commute_and_wait_times(
                         ]
                         // 60
                     )
+                    commute_meters = commute_data_df.loc[
+                        (source_id, destination_id, commute_method),
+                        "commute_meters",
+                    ]
+
                 except KeyError:
                     commute_time = 0  # Default to 0 if not found
+                    commute_meters = 0  # Default to 0 if not found
                     print(
                         f"Data not found for commute time: {source_id},"
                         f"{destination_id}, {commute_method}"
                     )
 
                 df.loc[index, "Commute Time"] = commute_time
+                df.loc[index, "Commute Meters"] = commute_meters
 
                 # Update previous end time and client ID for next iteration
                 prev_end_time = row["End DateTime"]
@@ -136,6 +141,10 @@ def plot_agenda(
                     ]
                     / 60
                 )
+                commute_meters = commute_data_df.loc[
+                    (source_id, destination_id, commute_method),
+                    "commute_meters",
+                ]
             except KeyError:
                 print("Commute time not found")
 
@@ -149,6 +158,7 @@ def plot_agenda(
                 "Date": date,
                 "ID Intervenant": intervenant_id,
                 "Commute Time": commute_time,
+                "Commute Meters": commute_meters,
                 "Commute Method": commute_method,
                 "Wait Time": 0,
             }
@@ -211,29 +221,46 @@ def plot_agenda(
 
 
 def preprocess_schedules(
-    temp: pd.DataFrame, caregivers: pd.DataFrame
+    temp: pd.DataFrame,
+    caregivers: pd.DataFrame,
+    sched: str = "optimised",
+    kind: str = "license",
 ) -> pd.DataFrame:
     jan24_df = temp.copy()
     jan24_df = jan24_df[jan24_df.Prestation != "COMMUTE"]
 
-    caregivers["Commute Method"] = caregivers["Véhicule personnel"].map(
-        {"Oui": "driving", "Non": "bicycling", np.nan: "bicycling"}
-    )  # map commute method
-    jan24_df = jan24_df.merge(
-        caregivers[["ID Intervenant", "Commute Method"]],
-        left_on="Caregiver_ID",
-        right_on="ID Intervenant",
-        how="left",
-    )  # merge with agenda data
+    if kind == "license":
+        caregivers["Commute Method"] = caregivers["Véhicule personnel"].map(
+            {"Oui": "driving", "Non": "bicycling", np.nan: "bicycling"}
+        )  # map commute method
+    else:
+        caregivers["Commute Method"] = "driving"
 
-    jan24_df["Start DateTime"] = pd.to_datetime(
-        jan24_df["Date"].astype(str)
-        + " "
-        + jan24_df["Heure de début"].astype(str)
-    )
-    jan24_df["End DateTime"] = pd.to_datetime(
-        jan24_df["Date"].astype(str)
-        + " "
-        + jan24_df["Heure de fin"].astype(str)
-    )
+    if sched == "optimised":
+        jan24_df = jan24_df.merge(
+            caregivers[["ID Intervenant", "Commute Method"]],
+            left_on="Caregiver_ID",
+            right_on="ID Intervenant",
+            how="left",
+        )  # merge with agenda data
+
+        jan24_df["Start DateTime"] = pd.to_datetime(jan24_df["Heure de début"])
+        jan24_df["End DateTime"] = pd.to_datetime(jan24_df["Heure de fin"])
+    else:
+        jan24_df = jan24_df.merge(
+            caregivers[["ID Intervenant", "Commute Method"]],
+            on="ID Intervenant",
+            how="left",
+        )  # merge with agenda data
+
+        jan24_df["Start DateTime"] = pd.to_datetime(
+            jan24_df["Date"].astype(str)
+            + " "
+            + jan24_df["Heure de début"].astype(str)
+        )
+        jan24_df["End DateTime"] = pd.to_datetime(
+            jan24_df["Date"].astype(str)
+            + " "
+            + jan24_df["Heure de fin"].astype(str)
+        )
     return jan24_df
