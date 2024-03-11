@@ -401,7 +401,7 @@ class CareScheduler:
             rule=objective_function, sense=pe.minimize
         )
 
-        # each case can be maximum given once as source 
+        # each case can be maximum given once as source
         # for all destinations and caregivers
         def session_assignment(model, case):
             return (
@@ -624,7 +624,7 @@ class CareScheduler:
                         * model.M
                     ),
                 ]
-            
+
             return [
                 model.CASE_START_TIME[case1]
                 + model.CASE_DURATION[case1]
@@ -787,4 +787,3 @@ if __name__ == "__main__":
                 save_plots=True,
                 save_dir=plots_dir / f"2024-01-{i}",
             )
-            
