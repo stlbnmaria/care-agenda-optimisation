@@ -509,7 +509,9 @@ class CareScheduler:
             )
 
         # if a case is assigned to a caregiver as source, it can't be assigned to a different caregiver as destination
-        def session_assignment_4(model: pe.ConcreteModel, case: int, caregiver_: int):
+        def session_assignment_4(
+            model: pe.ConcreteModel, case: int, caregiver_: int
+        ):
             return (
                 sum(
                     [
@@ -531,7 +533,9 @@ class CareScheduler:
             )
 
         # if a case is assigned to a caregiver as destination, it also needs to be assigned as a source for this caregiver
-        def session_assignment_6(model: pe.ConcreteModel, case: int, caregiver_: int):
+        def session_assignment_6(
+            model: pe.ConcreteModel, case: int, caregiver_: int
+        ):
             return (
                 (
                     sum(
@@ -575,7 +579,9 @@ class CareScheduler:
         )
 
         # define how downtime counts are calculated
-        def down_time_counts(model: pe.ConcreteModel, case1: int, case2: int, caregiver: int):
+        def down_time_counts(
+            model: pe.ConcreteModel, case1: int, case2: int, caregiver: int
+        ):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
                 "Permis",
@@ -627,7 +633,9 @@ class CareScheduler:
         )
 
         # define how commute time is calculated
-        def commute_care(model: pe.ConcreteModel, case1: int, case2: int, caregiver: int):
+        def commute_care(
+            model: pe.ConcreteModel, case1: int, case2: int, caregiver: int
+        ):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
                 "Permis",
@@ -660,7 +668,9 @@ class CareScheduler:
         )
 
         # define how commute meters are calculated
-        def commute_meters(model: pe.ConcreteModel, case1: int, case2: int, caregiver: int):
+        def commute_meters(
+            model: pe.ConcreteModel, case1: int, case2: int, caregiver: int
+        ):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
                 "Permis",
@@ -689,7 +699,9 @@ class CareScheduler:
 
         # Disjunction
         # define that two case combinations cannot overlap for a caregiver
-        def no_case_overlap(model: pe.ConcreteModel, case1: int, case2: int, caregiver: int):
+        def no_case_overlap(
+            model: pe.ConcreteModel, case1: int, case2: int, caregiver: int
+        ):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
                 "Permis",
