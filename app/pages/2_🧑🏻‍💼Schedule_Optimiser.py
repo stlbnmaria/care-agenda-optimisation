@@ -8,7 +8,7 @@ st.write("\n")
 st.write("\n")
 
 
-def display_kpis(kpi_names, kpi_values):
+def display_kpis(kpi_names, kpi_values_given, kpi_values_optim):
     """
     Display KPIs using st.metric().
 
@@ -19,11 +19,16 @@ def display_kpis(kpi_names, kpi_values):
     Returns:
         None
     """
-    col1, col2, col3 = st.columns(3)
 
-    # Display KPIs
-    for name, value, col in zip(kpi_names, kpi_values, [col1, col2, col3]):
-        col.metric(label=name, value=value)
+    df = pd.DataFrame({
+        "KPI": kpi_names,
+        "Given Schedule": ["{:.2f}".format(value) for value in kpi_values_given],
+        "Optimised Schedule": ["{:.2f}".format(value) for value in kpi_values_optim]
+    })
+
+    #st.table(pd.DataFrame(kpi_data).style.hide())
+    st.table(df)
+
 
 
 def get_commute_data(
@@ -232,41 +237,47 @@ avg_commute_q2b, avg_wait_q2b, distance_q2b = metrics_calculation(
 
 
 kpi_names = [
-    ":stopwatch: Avg. Commute Time (min)",
-    ":arrow_down: Avg nr short downtimes",
-    ":straight_ruler: Commute distance (km)",
+    "Avg. Commute Time (min)",
+    "Avg nr short downtimes",
+    "Commute distance (km)",
 ]
 kpi_values_given = [avg_commute_given, avg_wait_given, distance_given]
 
 # NOTE: change kind here depending on execution above
 if selected_constraint == "basic (commute time + downtime)":
 
+    st.subheader("KPI Comparison")
+
+    kpi_values_q1a = [avg_commute_q1a, avg_wait_q1a, distance_q1a]
+    display_kpis(kpi_names, kpi_values_given, kpi_values_q1a)
+
+
     st.subheader("Given Schedule")
-    display_kpis(kpi_names, kpi_values_given)
     intervenant_agenda_existing = plot_agenda(
         selected_caregiver, given_sched, commute_data_df, kind="driving"
     )
 
     st.subheader("Optimised Schedule")
-    kpi_values_q1a = [avg_commute_q1a, avg_wait_q1a, distance_q1a]
-    display_kpis(kpi_names, kpi_values_q1a)
     intervenant_agenda_commute = plot_agenda(
         selected_caregiver,
         optimised_sched_q1a,
         commute_data_df,
         kind="driving",
     )
+
 elif selected_constraint == "basic + emissions":
 
+    st.subheader("KPI Comparison")
+
+    kpi_values_q1b = [avg_commute_q1b, avg_wait_q1b, distance_q1b]
+    display_kpis(kpi_names, kpi_values_given, kpi_values_q1b)
+
     st.subheader("Given Schedule")
-    display_kpis(kpi_names, kpi_values_given)
     intervenant_agenda_existing = plot_agenda(
         selected_caregiver, given_sched, commute_data_df, kind="driving"
     )
 
     st.subheader("Optimised Schedule")
-    kpi_values_q1b = [avg_commute_q1b, avg_wait_q1b, distance_q1b]
-    display_kpis(kpi_names, kpi_values_q1b)
     intervenant_agenda_commute = plot_agenda(
         selected_caregiver,
         optimised_sched_q1b,
@@ -275,16 +286,18 @@ elif selected_constraint == "basic + emissions":
     )
 elif selected_constraint == "basic + additional":
 
+    st.subheader("KPI Comparison")
+
+    kpi_values_q2a = [avg_commute_q2a, avg_wait_q2a, distance_q2a]
+    display_kpis(kpi_names, kpi_values_given, kpi_values_q2a)
+
     st.subheader("Given Schedule")
-    display_kpis(kpi_names, kpi_values_given)
     intervenant_agenda_existing = plot_agenda(
         selected_caregiver, given_sched, commute_data_df, kind="driving"
     )
 
     st.subheader("Optimised Schedule")
     if not optimised_sched_q2a.empty:  # Check if DataFrame is not empty
-        kpi_values_q2a = [avg_commute_q2a, avg_wait_q2a, distance_q2a]
-        display_kpis(kpi_names, kpi_values_q2a)
         intervenant_agenda_commute = plot_agenda(
             selected_caregiver,
             optimised_sched_q2a,
@@ -295,16 +308,18 @@ elif selected_constraint == "basic + additional":
         st.write("No optimized agenda found for the selected date.")
 elif selected_constraint == "basic + additional + emissions":
 
+    st.subheader("KPI Comparison")
+
+    kpi_values_q2b = [avg_commute_q2b, avg_wait_q2b, distance_q2b]
+    display_kpis(kpi_names, kpi_values_given, kpi_values_q2b)
+
     st.subheader("Given Schedule")
-    display_kpis(kpi_names, kpi_values_given)
     intervenant_agenda_existing = plot_agenda(
         selected_caregiver, given_sched, commute_data_df, kind="driving"
     )
 
     st.subheader("Optimised Schedule")
     if not optimised_sched_q2b.empty:  # Check if DataFrame is not empty
-        kpi_values_q2b = [avg_commute_q2b, avg_wait_q2b, distance_q2b]
-        display_kpis(kpi_names, kpi_values_q2b)
         intervenant_agenda_commute = plot_agenda(
             selected_caregiver,
             optimised_sched_q2b,
