@@ -1,6 +1,5 @@
 import streamlit as st
 from streamlit_extras.switch_page_button import switch_page
-from streamlit_extras.app_logo import add_logo
 
 
 def main() -> None:
@@ -15,7 +14,7 @@ def main() -> None:
 
     with content_container:
         st.markdown(
-        """
+            """
 
         Your solution for optimizing caregiver schedules and maximizing efficiency in providing care services! Whether you're managing a home care agency or coordinating caregiver assignments, our platform is designed to streamline your scheduling process and enhance the quality of care provided to clients.
 
@@ -41,7 +40,7 @@ def main() -> None:
 
         Ready to optimize your caregiver schedules and improve the quality of care provided to your clients?
         """
-    )
+        )
 
     # Button to navigate to the inner page
     get_started_button = st.button("Get Started")

@@ -1,20 +1,9 @@
 """The module to display data analysis in the app."""
-import io
-import os
-from zipfile import ZipFile
-
 import folium
-import holidays
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.figure_factory as ff
-import plotly.graph_objects as go
-import plotly.io as pio
-import seaborn as sns
 import streamlit as st
-from plotly.subplots import make_subplots
 from streamlit_extras.switch_page_button import switch_page
 from streamlit_folium import folium_static
 
