@@ -722,7 +722,7 @@ class CareScheduler:
 
         return model
 
-    def solve(self, time_limit=1200):
+    def solve(self, time_limit=1500):
         solvername = "cbc"
         solverpath_exe = "/opt/homebrew/bin/cbc"
         solver = pe.SolverFactory(solvername, executable=solverpath_exe)
@@ -743,6 +743,9 @@ def main(
     transport="license",
     carbon_reduction=False,
     time_limit=1200,
+    one_date: bool = False,
+    day: str = None,
+    saved_file_name: str = None,
 ):
     commute_data_df = get_commute_data()
     caregivers = caregivers = pd.read_excel(
@@ -753,6 +756,9 @@ def main(
             i = f"0{i}"
         else:
             i = str(i)
+
+        if one_date:
+            i = day
 
         print(f"Starting optimisation for 2024-01-{i}")
         scheduler = CareScheduler(
@@ -785,9 +791,15 @@ def main(
         temp = scheduler.df_sessions.copy()
         temp = temp.merge(actions_df, how="left", on="idx")
 
-        results_dir = Path("results")
+        results_dir = Path("results_new_client")
         results_dir.mkdir(parents=True, exist_ok=True)
-        temp.to_csv(results_dir / f"optimised_Q1_2024-01-{i}.csv", index=False)
+
+        if not saved_file_name:
+            temp.to_csv(
+                results_dir / f"optimised_Q1_2024-01-{i}.csv", index=False
+            )
+        else:
+            temp.to_csv(results_dir / f"{saved_file_name}.csv", index=False)
 
         # Plot agenda and Save it
         plots_dir = Path("plots")
@@ -801,6 +813,8 @@ def main(
                 save_plots=True,
                 save_dir=plots_dir / f"2024-01-{i}",
             )
+        if one_date:
+            break
 
 
 if __name__ == "__main__":

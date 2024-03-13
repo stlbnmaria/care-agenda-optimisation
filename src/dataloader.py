@@ -1,9 +1,13 @@
 from pathlib import Path
 from typing import Tuple
-
+import argparse
 import pandas as pd
 
 from config.availability import CAREGIVER_AVAILABILITY_DICT
+from src.client_generator import add_new_clients_and_sessions
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 def load_data(excel_file: Path) -> Tuple[pd.DataFrame]:
@@ -73,7 +77,7 @@ def create_commute_df(kind: str = "driving") -> None:
     commute_data_df.to_csv(f"data/commute_{kind}_all.csv", index=False)
 
 
-def create_schedule_df() -> None:
+def create_schedule_df(generate_new_clients: bool, **kwargs) -> None:
     """Creates schedule data for optimisation for all days.
 
     Parameters: None
@@ -84,6 +88,9 @@ def create_schedule_df() -> None:
     excel_file = Path("data/ChallengeXHEC23022024.xlsx")
     schedule = pd.read_excel(excel_file, sheet_name=0)
     caregivers = pd.read_excel(excel_file, sheet_name=2)
+
+    if generate_new_clients:
+        df_clients, schedule = add_new_clients_and_sessions(**kwargs)
 
     # filter all data to contain only wanted prestation
     discard_list = [
@@ -220,11 +227,40 @@ def get_commute_data(
     return commute_data_df
 
 
-if __name__ == "__main__":
-    create_schedule_df()
+def load_and_save_data(generate_new_clients: bool = False, **kwargs):
+    create_schedule_df(generate_new_clients, **kwargs)
     create_caregiver_availability()
-
     create_commute_df(kind="driving")
     create_commute_df(kind="bicycling")
     create_transport_possibilities(kind="license")
     create_transport_possibilities(kind="driving")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Main function with argparse")
+
+    parser.add_argument(
+        "--generate-new-clients",
+        action="store_true",
+        default=False,
+        help="Boolean flag to generate new clients",
+    )
+    parser.add_argument(
+        "--n-clients", type=int, default=1, help="Number of new clients"
+    )
+    parser.add_argument(
+        "--random-client-segment",
+        action="store_true",
+        help="Boolean flag for random client segment",
+    )
+    parser.add_argument(
+        "--client-personas-sequence",
+        nargs="+",
+        type=int,
+        default=None,
+        help="List of client personas sequence",
+    )
+
+    args = parser.parse_args()
+
+    load_and_save_data(**vars(args))
