@@ -165,6 +165,12 @@ def create_schedule_df() -> None:
 
 
 def create_caregiver_availability() -> None:
+    """Creates cargivers' availabilities.
+
+    Parameters: None
+
+    Returns: None
+    """
     caregiver_avail_df = pd.DataFrame(
         list(CAREGIVER_AVAILABILITY_DICT.items()),
         columns=["ID Intervenant", "UNDISP_DAYS"],
@@ -173,6 +179,13 @@ def create_caregiver_availability() -> None:
 
 
 def create_transport_possibilities(kind: str = "license") -> None:
+    """Creates transport means for caregivers.
+
+    Parameters:
+    - kind (str): Kind of commute (either driving for all or license).
+
+    Returns: None
+    """
     excel_file = Path("data/ChallengeXHEC23022024.xlsx")
     caregivers = pd.read_excel(excel_file, sheet_name=2)
 
@@ -202,7 +215,14 @@ def get_commute_data(
         "data/commute_driving_clients_care.csv",
     ]
 ) -> pd.DataFrame:
+    """Get all commute possibilites with time and distance.
 
+    Parameters:
+    - commute_file_paths (list[str]): list of all commute files.
+
+    Returns:
+    - commute_data_df (pd.DataFrame): all commutes as dataframe
+    """
     commute_dataframes = [pd.read_csv(file) for file in commute_file_paths]
 
     for df in commute_dataframes:
@@ -213,9 +233,9 @@ def get_commute_data(
     commute_data_df[["source", "destination"]] = commute_data_df[
         "pair"
     ].str.extract(r"\((\d+), (\d+)\)")
-    commute_data_df.drop(columns="pair", inplace=True)
-    commute_data_df.set_index(
-        ["source", "destination", "commute_method"], inplace=True
+    commute_data_df = commute_data_df.drop(columns="pair")
+    commute_data_df = commute_data_df.set_index(
+        ["source", "destination", "commute_method"]
     )
     return commute_data_df
 
