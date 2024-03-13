@@ -3,7 +3,6 @@ import ast
 from itertools import product
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pyomo.environ as pe
 import pyomo.gdp as pyogdp
@@ -20,14 +19,15 @@ class CareScheduler:
         transport: str = "driving",
         filter_for_competence: bool = False,
         carbon_reduction: bool = False,
-    ):
+    ) -> None:
+        """Loading all necessary data."""
+        # load sessions and caregivers
         try:
             df_sessions = pd.read_csv("data/schedule.csv")
             df_sessions = df_sessions[df_sessions.Date == date]
             self.df_sessions = df_sessions
         except FileNotFoundError:
             print("Session data not found.")
-
         try:
             self.df_cargeivers = pd.read_excel(
                 "data/ChallengeXHEC23022024.xlsx", sheet_name=2
@@ -35,18 +35,17 @@ class CareScheduler:
         except FileNotFoundError:
             print("Caregiver data not found")
 
+        # load commute data
         try:
             self.df_commute = pd.read_csv("data/commute_driving_all.csv")
         except FileNotFoundError:
             print("Commute data not found")
-
         try:
             self.df_commute_bicycling = pd.read_csv(
                 "data/commute_bicycling_all.csv"
             )
         except FileNotFoundError:
             print("Bicycling commute data not found")
-
         try:
             self.df_caregiver_transport = pd.read_csv(
                 f"data/caregiver_transport_{transport}.csv"
@@ -54,6 +53,7 @@ class CareScheduler:
         except FileNotFoundError:
             print("Caregiver transport data not found")
 
+        # filter for availability
         if include_availability:
             try:
                 # load days where caregiver is not available
@@ -97,6 +97,7 @@ class CareScheduler:
             except FileNotFoundError:
                 print("Caregiver availability data not found")
 
+        # filter for caregivers' skills at each prestation
         self.filter_for_competence = filter_for_competence
         if self.filter_for_competence:
             self.CAREGIVER_COMPETENCE = (
@@ -115,21 +116,25 @@ class CareScheduler:
                 .to_dict()
             )
 
+        # set to include carbon emission in objective function
         self.carbon_reduction = carbon_reduction
         self.model = self.create_model()
 
     def _generate_case_durations(self) -> dict:
+        """Generate case duration for every case."""
         return pd.Series(
             self.df_sessions["Duration"].values, index=self.df_sessions["idx"]
         ).to_dict()
 
     def _generate_start_time(self) -> dict:
+        """Generate case start time for every case."""
         return pd.Series(
             self.df_sessions["Start_time"].values,
             index=self.df_sessions["idx"],
         ).to_dict()
 
     def _generate_clients_commute(self) -> dict:
+        """Generate car commute between all clients and caregivers."""
         clients_commute = {}
         cargivers = self.df_cargeivers["ID Intervenant"].to_list()
         for source, dest in product(
@@ -151,6 +156,7 @@ class CareScheduler:
         return clients_commute
 
     def _generate_clients_commute_bicycling(self) -> dict:
+        """Generate bicycle commute between all clients and caregivers."""
         clients_commute_bicycling = {}
         cargivers = self.df_cargeivers["ID Intervenant"].to_list()
         for source, dest in product(
@@ -175,7 +181,8 @@ class CareScheduler:
             ]
         return clients_commute_bicycling
 
-    def _generate_commute_car_meters(self):
+    def _generate_commute_car_meters(self) -> dict:
+        """Generate commute meters by car between all clients and caregivers."""
         clients_commute = {}
         cargivers = self.df_cargeivers["ID Intervenant"].to_list()
         for source, dest in product(
@@ -196,15 +203,14 @@ class CareScheduler:
             ].iloc[0]
         return clients_commute
 
-    def _IDX_CLIENTS_match(self) -> dict:
+    def _idx_clients_match(self) -> dict:
+        """Get clients'/caregivers' ids for each case."""
         return pd.Series(
             self.df_sessions["ID Client"].values, index=self.df_sessions["idx"]
         ).to_dict()
 
     def _generate_disjunctions(self) -> list[tuple]:
-        """Returns:
-        disjunctions (list): list of tuples containing disjunctions
-        """
+        """Generate combinations of client routes and caregivers."""
         cases = self.df_sessions["idx"].to_list()
         cargivers = self.df_cargeivers["ID Intervenant"].to_list()
         disjunctions = []
@@ -290,6 +296,7 @@ class CareScheduler:
         return disjunctions
 
     def _generate_tasks(self) -> list[tuple]:
+        """Generate combinations of cases and caregivers."""
         cases = self.df_sessions["idx"].to_list()
         cargivers = self.df_cargeivers["ID Intervenant"].to_list()
         tasks = []
@@ -320,6 +327,7 @@ class CareScheduler:
         return tasks
 
     def _case_combinations(self) -> list[tuple]:
+        """Generate combinations of cases (client routes)."""
         cases = self.df_sessions["idx"].unique()
         cargivers = self.df_cargeivers["ID Intervenant"].to_list()
 
@@ -352,26 +360,27 @@ class CareScheduler:
 
         return case_comb
 
-    def create_model(self):
-        """Generate concrete model for optimisation problem
-
-        Returns:
-            _type_: _description_
-        """
+    def create_model(self) -> pe.ConcreteModel:
+        """Generate concrete model for optimisation problem."""
         model = pe.ConcreteModel()
 
-        # List of case IDs in home care client needs list
+        # List of case IDs in schedule
         model.CASES = pe.Set(initialize=self.df_sessions["idx"].tolist())
+
         # List of potential caregiver IDs
         model.CAREGIVERS = pe.Set(
             initialize=self.df_cargeivers["ID Intervenant"].tolist()
         )
-        # Session utilisation
+
+        # List of combinations of client routes and caregivers
         model.DISJUNCTIONS = pe.Set(
             initialize=self._generate_disjunctions(), dimen=3
         )
+
         # List of tasks - all possible (caseID, caregiverID) combination
         model.TASKS = pe.Set(initialize=self._generate_tasks(), dimen=2)
+
+        # List of all case combinations
         model.CASE_COMBINATIONS = pe.Set(
             initialize=self._case_combinations(),
             dimen=2,
@@ -386,15 +395,20 @@ class CareScheduler:
             model.CASES, initialize=self._generate_start_time()
         )
 
+        # List of all client / caregiver route combinations
         model.CLIENT_CONNECTIONS = pe.Set(
             initialize=product(
                 self.df_sessions["ID Client"].unique(),
                 self.df_sessions["ID Client"].unique(),
             )
         )
+
+        # Match of case ids to client ids
         model.IDX_CLIENTS = pe.Param(
-            model.CASES, initialize=self._IDX_CLIENTS_match()
+            model.CASES, initialize=self._idx_clients_match()
         )
+
+        # List of car commute times, bicycle commute times and commute meters
         model.COMMUTE = pe.Param(
             model.CLIENT_CONNECTIONS,
             initialize=self._generate_clients_commute(),
@@ -408,17 +422,23 @@ class CareScheduler:
             initialize=self._generate_commute_car_meters(),
         )
 
-        # Decision Variables
+        # Helper variables
         ub = 1440  # minutes in a day
         model.M = pe.Param(initialize=1e3 * ub)  # big M
 
-        # Binary flag, 1 if case is assigned to session, 0 otherwise
+        # Decision Variable
+        # Binary flag, 1 if case connection is assigned to caregiver, 0 otherwise
         model.SESSION_ASSIGNED = pe.Var(model.DISJUNCTIONS, domain=pe.Binary)
-        # commute for cargiver
+
+        # Commute for cargiver based on case connections
         model.COMMUTE_CARE = pe.Var(
             model.DISJUNCTIONS, bounds=(0.0, 1440.0), within=pe.PositiveReals
         )
+
+        # Short downtime count for cargiver based on case connections
         model.DOWN_TIME_COUNTS = pe.Var(model.DISJUNCTIONS, within=pe.Binary)
+
+        # Commute meters by car for cargiver based on case connections
         model.COMMUTE_METERS = pe.Var(
             model.DISJUNCTIONS, within=pe.PositiveReals
         )
@@ -440,9 +460,10 @@ class CareScheduler:
             rule=objective_function, sense=pe.minimize
         )
 
+        # Constraints
         # each case can be maximum given once as source
         # for all destinations and caregivers
-        def session_assignment(model, case):
+        def session_assignment(model: pe.ConcreteModel, case: int):
             return (
                 sum(
                     [
@@ -455,7 +476,7 @@ class CareScheduler:
             )
 
         # each case can be maximum given once as destination for all sources and caregivers
-        def session_assignment_2(model, case):
+        def session_assignment_2(model: pe.ConcreteModel, case: int):
             return (
                 sum(
                     [
@@ -468,7 +489,7 @@ class CareScheduler:
             )
 
         # each case needs to be given at least once as source or destination
-        def session_assignment_3(model, case):
+        def session_assignment_3(model: pe.ConcreteModel, case: int):
             return (
                 sum(
                     [
@@ -488,7 +509,7 @@ class CareScheduler:
             )
 
         # if a case is assigned to a caregiver as source, it can't be assigned to a different caregiver as destination
-        def session_assignment_4(model, case, caregiver_):
+        def session_assignment_4(model: pe.ConcreteModel, case: int, caregiver_: int):
             return (
                 sum(
                     [
@@ -510,7 +531,7 @@ class CareScheduler:
             )
 
         # if a case is assigned to a caregiver as destination, it also needs to be assigned as a source for this caregiver
-        def session_assignment_6(model, case, caregiver_):
+        def session_assignment_6(model: pe.ConcreteModel, case: int, caregiver_: int):
             return (
                 (
                     sum(
@@ -553,7 +574,8 @@ class CareScheduler:
             model.TASKS, rule=session_assignment_6
         )
 
-        def down_time_counts(model, case1, case2, caregiver):
+        # define how downtime counts are calculated
+        def down_time_counts(model: pe.ConcreteModel, case1: int, case2: int, caregiver: int):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
                 "Permis",
@@ -604,7 +626,8 @@ class CareScheduler:
             model.DISJUNCTIONS, rule=down_time_counts
         )
 
-        def commute_care(model, case1, case2, caregiver):
+        # define how commute time is calculated
+        def commute_care(model: pe.ConcreteModel, case1: int, case2: int, caregiver: int):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
                 "Permis",
@@ -636,7 +659,8 @@ class CareScheduler:
             model.DISJUNCTIONS, rule=commute_care
         )
 
-        def commute_meters(model, case1, case2, caregiver):
+        # define how commute meters are calculated
+        def commute_meters(model: pe.ConcreteModel, case1: int, case2: int, caregiver: int):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
                 "Permis",
@@ -663,7 +687,9 @@ class CareScheduler:
             model.DISJUNCTIONS, rule=commute_meters
         )
 
-        def no_case_overlap(model, case1, case2, caregiver):
+        # Disjunction
+        # define that two case combinations cannot overlap for a caregiver
+        def no_case_overlap(model: pe.ConcreteModel, case1: int, case2: int, caregiver: int):
             if self.df_caregiver_transport.loc[
                 self.df_caregiver_transport["ID Intervenant"] == caregiver,
                 "Permis",
@@ -722,7 +748,7 @@ class CareScheduler:
 
         return model
 
-    def solve(self, time_limit=1200):
+    def solve(self, time_limit: int = 1200):
         solvername = "cbc"
         solverpath_exe = "/opt/homebrew/bin/cbc"
         solver = pe.SolverFactory(solvername, executable=solverpath_exe)
@@ -738,16 +764,17 @@ class CareScheduler:
 
 
 def main(
-    include_availability=True,
-    filter_for_competence=True,
-    transport="license",
-    carbon_reduction=False,
-    time_limit=1200,
-):
+    include_availability: bool = True,
+    filter_for_competence: bool = True,
+    transport: str = "license",
+    carbon_reduction: bool = False,
+    time_limit: int = 1200,
+) -> None:
     commute_data_df = get_commute_data()
     caregivers = caregivers = pd.read_excel(
         "data/ChallengeXHEC23022024.xlsx", sheet_name=2
     )
+    # iterate over all days of january
     for i in range(1, 32):
         if i < 10:
             i = f"0{i}"
@@ -762,7 +789,7 @@ def main(
             filter_for_competence=filter_for_competence,
             carbon_reduction=carbon_reduction,
         )
-        solver_results = scheduler.solve(time_limit)
+        _ = scheduler.solve(time_limit)
         model = scheduler.model
 
         # get all session assigned by key
@@ -771,7 +798,6 @@ def main(
             for k, v in model.SESSION_ASSIGNED.extract_values().items()
             if v == 1
         ]
-
         actions_df = pd.DataFrame(
             actions, columns=["idx1", "idx2", "Caregiver_ID"]
         )
@@ -782,9 +808,11 @@ def main(
         actions_df = pd.concat([actions_df_1, actions_df_2], axis=0)
         actions_df = actions_df.drop_duplicates()
 
+        # merge input schedule and assigned sessions
         temp = scheduler.df_sessions.copy()
         temp = temp.merge(actions_df, how="left", on="idx")
 
+        # save optimised schedule for the day as csv
         results_dir = Path("results")
         results_dir.mkdir(parents=True, exist_ok=True)
         temp.to_csv(results_dir / f"optimised_Q1_2024-01-{i}.csv", index=False)
