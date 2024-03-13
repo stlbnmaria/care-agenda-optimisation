@@ -6,12 +6,24 @@ import plotly.express as px
 def compute_commute_and_wait_times(
     df: pd.DataFrame, commute_data_df: pd.DataFrame, kind: str = "license"
 ) -> pd.DataFrame:
+    """Computes commute and wait times for each entry in the DataFrame.
+
+    Parameters:
+        df (pd.DataFrame): DataFrame containing schedule data.
+        commute_data_df (pd.DataFrame): DataFrame containing commute time data.
+        kind (str, optional): Type of commute method to consider. Defaults to "license".
+
+    Returns:
+        pd.DataFrame: Data with added columns for commute & wait time, and commute distance.
+    """
     df["Wait Time"] = 0
     df["Commute Time"] = 0
 
+    # iterate over clients
     for intervenant_id in df["ID Intervenant"].unique():
         intervenant_data = df[df["ID Intervenant"] == intervenant_id]
 
+        # iterate over days
         for date in intervenant_data["Date"].unique():
             daily_data = intervenant_data[
                 intervenant_data["Date"] == date
@@ -21,6 +33,8 @@ def compute_commute_and_wait_times(
 
             for index, row in daily_data.iterrows():
                 destination_id = str(row["ID Client"])
+
+                # get the right commute method
                 if kind == "license":
                     commute_method = (
                         row["Commute Method"]
@@ -35,6 +49,7 @@ def compute_commute_and_wait_times(
                 else:
                     source_id = str(prev_client_id)
 
+                    # calculate wait time and add if smaller than 30 minutes
                     wait_time = (
                         row["Start DateTime"] - prev_end_time
                     ).total_seconds() // 60 - commute_data_df.loc[
@@ -44,6 +59,7 @@ def compute_commute_and_wait_times(
                     if wait_time < 30:
                         df.loc[index, "Wait Time"] = wait_time
 
+                # calculate commute time
                 try:
                     commute_time = (
                         commute_data_df.loc[
@@ -83,11 +99,26 @@ def plot_agenda(
     save_plots: bool = False,
     save_dir: str = None,
 ) -> pd.DataFrame:
+    """Plot the agenda for a specific intervenant, including commute and wait times.
+
+    Parameters:
+        intervenant_id (int): ID of the intervenant.
+        jan24_df (pd.DataFrame): DataFrame containing schedule data.
+        commute_data_df (pd.DataFrame): DataFrame containing commute time data.
+        kind (str, optional): Type of commute method to consider. Defaults to "license".
+        save_plots (bool, optional): Whether to save the plots or not. Defaults to False.
+        save_dir (str, optional): Directory to save the plots. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Combined DataFrame with agenda details including commute and wait times.
+    """
+    # filter for caregiver and sort by start date
     intervenant_agenda = jan24_df[jan24_df["ID Intervenant"] == intervenant_id]
     intervenant_agenda_sorted = intervenant_agenda.sort_values(
         by=["Date", "Heure de début"]
     )
 
+    # generate some columns for the plot with the right naming and type
     df_timeline = intervenant_agenda_sorted.copy()
     df_timeline["Start"] = pd.to_datetime(df_timeline["Start DateTime"])
     df_timeline["Finish"] = pd.to_datetime(df_timeline["End DateTime"])
@@ -95,10 +126,12 @@ def plot_agenda(
     df_timeline["Resource"] = df_timeline["ID Intervenant"].astype(str)
     df_timeline["ID Client"] = df_timeline["ID Client"].astype(str)
 
+    # compute wait and commute times
     df_timeline = compute_commute_and_wait_times(
         df_timeline, commute_data_df, kind
     )
 
+    # create wait and commute entries
     commute_entries = df_timeline.copy()
     commute_entries["Start"] = commute_entries["Start"] - pd.to_timedelta(
         commute_entries["Commute Time"], unit="m"
@@ -109,6 +142,7 @@ def plot_agenda(
     commute_entries["Task"] = "Commute Time"
     commute_entries["Type"] = "Commute"
 
+    # generate rows for wait time
     wait_entries = []
     prev_finish = None
     for _, row in df_timeline.iterrows():
@@ -124,6 +158,7 @@ def plot_agenda(
 
     df_timeline["Type"] = "Task"
 
+    # add end of day commute from the last session home
     end_of_day_commutes = []
     for date in df_timeline["Date"].unique():
         daily_data = df_timeline[df_timeline["Date"] == date]
@@ -171,6 +206,7 @@ def plot_agenda(
     )
     combined_df.sort_values(by="Start", inplace=True)
 
+    # create schedule plot
     fig = px.timeline(
         combined_df,
         x_start="Start",
@@ -211,6 +247,7 @@ def plot_agenda(
             type="date",
         )
     )
+    # save plots if specified
     if save_plots:
         save_dir.mkdir(parents=True, exist_ok=True)
         fig.write_html(f"{save_dir}/timeline_{intervenant_id}.html")
@@ -226,9 +263,21 @@ def preprocess_schedules(
     sched: str = "optimised",
     kind: str = "license",
 ) -> pd.DataFrame:
+    """Preprocesses schedule data for plotting.
+
+    Parameters:
+        temp (pd.DataFrame): DataFrame containing schedule data.
+        caregivers (pd.DataFrame): DataFrame containing caregiver information.
+        sched (str, optional): Type of schedule to process. Defaults to "optimised".
+        kind (str, optional): Type of commute method to consider. Defaults to "license".
+
+    Returns:
+        pd.DataFrame: Preprocessed schedule DataFrame.
+    """
     jan24_df = temp.copy()
     jan24_df = jan24_df[jan24_df.Prestation != "COMMUTE"]
 
+    # add the correct commute possibility for cargivers
     if kind == "license":
         caregivers["Commute Method"] = caregivers["Véhicule personnel"].map(
             {"Oui": "driving", "Non": "bicycling", np.nan: "bicycling"}
@@ -236,6 +285,7 @@ def preprocess_schedules(
     else:
         caregivers["Commute Method"] = "driving"
 
+    # merge and create the start and end time
     if sched == "optimised":
         jan24_df = jan24_df.merge(
             caregivers[["ID Intervenant", "Commute Method"]],
