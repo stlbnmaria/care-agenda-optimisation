@@ -58,3 +58,11 @@ Available arguments:
 - --carbon_reduction (bool) : Include carbon emission in the optimisation function.
 - --transport (str) : Type of transport. Defaults to "license"
 - --time_limit (int) : Maximum time limit to run one optimisation problem in seconds.
+
+## Run the App
+
+In the app you can explore some interactive data analysis as well as the comparison of given and optimised schedule.
+```bash
+cd app/
+streamlit run 🏡_Home.py
+```
