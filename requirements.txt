@@ -5,3 +5,7 @@ openpyxl==3.1.2
 plotly==5.19.0
 googlemaps==4.10.0
 scikit-learn==1.4.1
+streamlit==1.32.1
+streamlit-extras==0.4.0
+validators==0.22.0
+streamlit-folium==0.18.0
