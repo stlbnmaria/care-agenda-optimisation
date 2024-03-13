@@ -22,3 +22,10 @@ pip install -e .
 pip install -r requirements-dev.txt
 pre-commit install
 ```
+
+## Run the App
+In the app you can explore some interactive data analysis as well as the comparison of given and optimised schedule.
+```bash
+cd app/
+streamlit run 🏡_Home.py
+```
