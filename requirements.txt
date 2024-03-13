@@ -11,3 +11,7 @@ seaborn==0.13.2
 geopandas==0.14.3
 IPython==8.22.1
 shapely==2.0.3
+streamlit==1.32.1
+streamlit-extras==0.4.0
+validators==0.22.0
+streamlit-folium==0.18.0

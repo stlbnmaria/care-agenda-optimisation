@@ -8,6 +8,7 @@
 Authors: Elizaveta Barysheva, Kaan Caylan, Joao Melo, Steve Moses, Madhura Nirale & Maria Susanne Stoelben
 
 ## Description
+This project is about optimizing a home care agenda by minimizing commute time, number of short downtimes (less than 30 minutes) and carbon emissions. Additionally, a streamlit app was built to interactively explore the data as well as the optimisation results. Furthermore, the Grand Est region was analysed regarding market potential.
 
 ## Setup
 ```bash
@@ -21,4 +22,47 @@ pip install -e .
 ```bash
 pip install -r requirements-dev.txt
 pre-commit install
+```
+
+## Load Data
+
+To run dataloader before optimisation problem
+```bash
+python3 src/dataloader.py
+```
+
+To generate new clients to the preprocessed data:
+```bash
+python3 python src/dataloader.py --generate-new-clients --n-clients 5 --random-client-segment
+```
+
+Number of clients may be changed using --n_clients argument. Default setting generates clients from random
+segments. If you want to specify the segments from which you want to create clients from:
+
+```bash
+python3 src/dataloader.py --generate-new-clients --n-clients 3  --client-personas-sequence "13210"
+```
+
+where the sequence is the sequence of client segments to add. Its length must match n-clients to add
+
+## Run optimizer
+```bash
+python src/optimiser.py
+```
+Arguments to script may be added according to desired optimisation.
+
+Available arguments:
+
+- --include_availability (bool) : Take caregiver availability into account.
+- --filter_for_competence (bool) : Filter for competence of caregivers.
+- --carbon_reduction (bool) : Include carbon emission in the optimisation function.
+- --transport (str) : Type of transport. Defaults to "license"
+- --time_limit (int) : Maximum time limit to run one optimisation problem in seconds.
+
+## Run the App
+
+In the app you can explore some interactive data analysis as well as the comparison of given and optimised schedule.
+```bash
+cd app/
+streamlit run 🏡_Home.py
 ```
