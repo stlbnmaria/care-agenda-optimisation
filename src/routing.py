@@ -1,4 +1,4 @@
-from itertools import combinations
+from itertools import product
 from typing import Tuple
 
 import googlemaps
@@ -66,20 +66,25 @@ if __name__ == "__main__":
     list_distance = []
 
     if ROUTE_DIRECTION == "clients":
-        comb_clients = list(combinations(clients["ID Client"], 2))
+        combs_list = list(product(clients["ID Client"], clients["ID Client"]))
 
         # Loop through each row in the data frame using pairwise
-        for client1, client2 in comb_clients:
-            # Assign latitude and longitude as origin/departure points
-            origins = get_coordinate_tuple(
-                clients, clients["ID Client"] == client1
-            )
-            destination = get_coordinate_tuple(
-                clients, clients["ID Client"] == client2
-            )
+        for client1, client2 in combs_list:
+            if client1 == client2:
+                result_dist, result_time = 0, 0
+            else:
+                # Assign latitude and longitude as origin/departure points
+                origins = get_coordinate_tuple(
+                    clients, clients["ID Client"] == client1
+                )
+                destination = get_coordinate_tuple(
+                    clients, clients["ID Client"] == client2
+                )
 
-            # pass origin and destination variables to distance_matrix
-            result_dist, result_time = gmaps_api_request(origins, destination)
+                # pass origin and destination variables to distance_matrix
+                result_dist, result_time = gmaps_api_request(
+                    origins, destination
+                )
 
             # append result to list
             list_seconds.append(result_time)
