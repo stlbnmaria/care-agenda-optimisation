@@ -1,17 +1,18 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from scipy.stats import poisson
-from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 
-def get_client_segments(file_path: str = "data/ChallengeXHEC23022024.xlsx"):
+def get_client_segments(
+    file_path: str = "data/ChallengeXHEC23022024.xlsx",
+) -> pd.DataFrame:
     # Load data
     excel_data = pd.ExcelFile(file_path)
 
     jan24_df = pd.read_excel(excel_data, sheet_name="JAN24")
     clients_df = pd.read_excel(excel_data, sheet_name="clients")
-    intervenants_df = pd.read_excel(excel_data, sheet_name="intervenants")
 
     paris_center_coords = {"Latitude": 48.864716, "Longitude": 2.349014}
 
@@ -99,30 +100,6 @@ def generate_random_sessions(
     df_clients: pd.DataFrame,
     df_sessions: pd.DataFrame,
     df_caregivers: pd.DataFrame,
-):
-    """Generate new clients and add it into the raw dataset.
-
-    Args:
-        persona_group (str): One of the possible persona segments created
-        df_client_with_persona (pd.DataFrame): Output from get_client_segments.
-            Similar to client sessions but contains persona column
-        df_clients (pd.DataFrame): raw clients data from excel sheet
-        df_sessions (pd.DataFrame): raw sessions data from excel sheet
-        df_caregivers (pd.DataFrame): raw caregivers data from excel sheet
-
-    Returns:
-        tuple[pd.DataFrame, pd.DataFrame]: new client data and new sessions data
-    """
-
-    return None
-
-
-def generate_random_sessions(
-    persona_group: int,
-    df_client_with_persona: pd.DataFrame,
-    df_clients: pd.DataFrame,
-    df_sessions: pd.DataFrame,
-    df_caregivers: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Generate new clients and add it into the raw dataset.
 
@@ -149,7 +126,7 @@ def generate_random_sessions(
             df_client_with_persona["client_persona"] == persona_group
             ].copy()"""
 
-    df = pd.merge(df_sessions, df_persona, how="right", on="ID Client")
+    df = df_sessions.merge(df_persona, how="right", on="ID Client")
 
     event_counts = df.groupby(["Cluster", "Date"])["Prestation"].count()
 
@@ -243,7 +220,7 @@ def add_new_clients_and_sessions(
     all_personas: list[str] = [0, 1, 2, 3],
     excel_file: str = "data/ChallengeXHEC23022024.xlsx",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Add new clients to clients dataframe and new sessions based on these clients to sessions dataset
+    """Add new clients to clients dataframe and new sessions based on these clients to sessions dataset.
 
     Args:
         n_clients (int): number of clients to add

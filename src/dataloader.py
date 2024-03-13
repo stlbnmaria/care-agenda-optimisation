@@ -1,11 +1,12 @@
+import argparse
+import warnings
 from pathlib import Path
 from typing import Tuple
-import argparse
+
 import pandas as pd
 
 from config.availability import CAREGIVER_AVAILABILITY_DICT
 from src.client_generator import add_new_clients_and_sessions
-import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -90,7 +91,7 @@ def create_schedule_df(generate_new_clients: bool, **kwargs) -> None:
     caregivers = pd.read_excel(excel_file, sheet_name=2)
 
     if generate_new_clients:
-        df_clients, schedule = add_new_clients_and_sessions(**kwargs)
+        _, schedule = add_new_clients_and_sessions(**kwargs)
 
     # filter all data to contain only wanted prestation
     discard_list = [
@@ -247,7 +248,7 @@ def get_commute_data(
     return commute_data_df
 
 
-def load_and_save_data(generate_new_clients: bool = False, **kwargs):
+def load_and_save_data(generate_new_clients: bool = False, **kwargs) -> None:
     create_schedule_df(generate_new_clients, **kwargs)
     create_caregiver_availability()
     create_commute_df(kind="driving")
