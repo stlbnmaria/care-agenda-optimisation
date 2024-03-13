@@ -2,6 +2,7 @@
 .DS_Store
 data/
 results/
+plots/
 
 
 # Byte-compiled / optimized / DLL files
